@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 20h9'></path><path d='M16.5 3.5l4 4L7.5 19.5 3.5 15.5l9-9z'></path></svg>" type="image/svg+xml">
+    <title>我的笔记</title>
+    <script src="https://cdn.jsdelivr.net/npm/leancloud-storage@4.15.2/dist/av.min.js"></script>
+    <style>
+        /* 你的 CSS 样式，保持不变 */
+        :root {
+            --primary-color: #4CAF50;
+            --secondary-color: #f44336;
+            --bg-color: #f0f2f5;
+            --card-bg-color: #ffffff;
+            --border-color: #e0e0e0;
+            --shadow-color: rgba(0,0,0,0.1);
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 10px;
+        }
+        h1 {
+            text-align: center;
+            color: #444;
+            margin-bottom: 20px;
+        }
+        .add-button {
+            display: block;
+            width: 100%;
+            padding: 12px 20px;
+            font-size: 16px;
+            color: #fff;
+            background-color: var(--primary-color);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin: 20px 0;
+        }
+        .add-button:hover {
+            background-color: #45a049;
+        }
+        .note-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .note-item {
+            background-color: var(--card-bg-color);
+            border-radius: 8px;
+            box-shadow: 0 4px 6px var(--shadow-color);
+            padding: 20px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: transform 0.2s ease-in-out;
+        }
+        .note-item:hover {
+            transform: translateY(-2px);
+        }
+        .note-content {
+            flex-grow: 1;
+            margin-right: 20px;
+            font-size: 16px;
+            line-height: 1.6;
+            word-wrap: break-word;
+        }
+        .note-delete-btn {
+            background-color: var(--secondary-color);
+            color: #fff;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-size: 14px;
+        }
+        .note-delete-btn:hover {
+            background-color: #d32f2f;
+        }
+        .copy-btn {
+            background-color: #008CBA;
+            color: #fff;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-size: 14px;
+        }
+        .copy-btn:hover {
+            background-color: #007B8A;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            font-size: 18px;
+            color: #888;
+        }
+
+        .copy-btn {
+            margin-right: 5px; /* 删除按钮右边间隔5px */
+            margin-left: 5px; /* 删除按钮右边间隔5px */
+            margin-bottom: 5px;
+            margin-top: 5px;
+        }
+        .note-delete-btn {
+            margin-right: 5px; /* 删除按钮右边间隔5px */
+            margin-left: 5px; /* 删除按钮右边间隔5px */
+            margin-bottom: 5px;
+            margin-top: 5px;
+        }
+
+
+
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+            .container {
+                padding: 0;
+            }
+            .note-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .note-content {
+                margin-right: 0;
+                margin-bottom: 10px;
+            }
+            .note-delete-btn, .copy-btn {
+                width: 100%;
+                text-align: center;
+            }
+        }
+
+
+
+
+
+
+        /* 悬浮加号按钮样式 */
+        .floating-btn {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            background-color: #4CAF50;
+            border: none;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            transition: opacity 0.3s ease;
+            opacity: 1; /* 默认显示 */
+        }
+
+        .floating-btn svg {
+            width: 30px;
+            height: 30px;
+            fill: white;
+        }
+
+        /* 上滑时显示，默认显示 */
+        .floating-btn.hidden {
+            opacity: 0; /* 下滑时隐藏 */
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+<!--    <button  id="add-btn-top" class="add-button">添加笔记</button>-->
+    <ul id="note-list" class="note-list">
+        <div id="loading" class="loading">加载中...</div>
+    </ul>
+</div>
+
+<!-- 右下角的加号按钮 -->
+<button id="add-btn-top" class="floating-btn">
+    <!-- 使用SVG作为加号图标 -->
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+        <path d="M12 5v14m7-7H5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+</button>
+
+<script>
+    // ==== 1. 初始化 LeanCloud ====
+    AV.init({
+        appId: "fXPH9lZeof6tSjLjgD05tJxR-gzGzoHsz",
+        appKey: "jdy9umSh0Ggo6dlzwt5W55gn",
+        serverURL: "https://fxph9lze.lc-cn-n1-shared.com"
+    });
+
+    const Note = AV.Object.extend("Note");
+    const noteList = document.getElementById("note-list");
+    const loadingEl = document.getElementById("loading");
+
+
+    // ==== 2. 登录鉴权（云函数）====
+    async function authenticate() {
+        // 检查是否已经登录过
+        const isAuthenticated = localStorage.getItem("isAuthenticated");
+
+        if (isAuthenticated) {
+            fetchNotes();  // 如果已通过认证，直接加载笔记
+        } else {
+            const password = prompt("请输入密码：");
+            if (!password) return;
+
+            try {
+                const result = await AV.Cloud.run('verifyPassword', { password });
+                if (result.success) {
+                    localStorage.setItem("isAuthenticated", "true"); // 保存登录状态
+                    fetchNotes();  // 登录成功，开始加载笔记
+                }
+            } catch (err) {
+                alert("密码错误，请重试！");
+                authenticate(); // 密码错误重新输入
+            }
+        }
+    }
+
+    // ==== 2. 加载笔记 ====
+    async function fetchNotes() {
+        loadingEl.style.display = "block";
+        noteList.innerHTML = "";
+        noteList.appendChild(loadingEl);
+
+        const query = new AV.Query("Note");
+        query.descending("createdAt");
+        try {
+            const notes = await query.find();
+            renderNotes(notes);
+        } catch (err) {
+            console.error(err);
+            loadingEl.innerText = "加载失败，请刷新重试";
+        }
+    }
+
+    function renderNotes(notes) {
+        noteList.innerHTML = "";
+        if (notes.length === 0) {
+            noteList.innerHTML = "<div class='loading'>暂无笔记</div>";
+            return;
+        }
+        notes.forEach(note => {
+            const li = document.createElement("li");
+            li.className = "note-item";
+            li.innerHTML = `
+                <div class="note-content">${note.get("content")}</div>
+
+                <button class="copy-btn">复制</button>
+                <button class="note-delete-btn">删除</button>
+
+            `;
+            li.querySelector(".note-delete-btn").addEventListener("click", () => deleteNote(note));
+            li.querySelector(".copy-btn").addEventListener("click", () => copyToClipboard(note.get("content")));
+            noteList.appendChild(li);
+        });
+    }
+
+    // ==== 3. 复制到剪贴板 ====
+    function copyToClipboard(content) {
+        const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+
+        if (isMobile) {
+            // 在手机设备上使用Clipboard API
+            navigator.clipboard.writeText(content)
+                .then(() => alert('已复制到剪贴板'))
+                .catch(err => alert('复制失败：' + err));
+        } else {
+            // 在PC端使用execCommand
+            const textarea = document.createElement('textarea');
+            textarea.value = content;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            alert('已复制到剪贴板');
+        }
+    }
+
+    // ==== 4. 删除笔记 ====
+    async function deleteNote(note) {
+        if (!confirm("确定要删除这条笔记吗？")) return;
+        try {
+            await note.destroy();
+            fetchNotes();
+        } catch (err) {
+            alert("删除失败，请重试");
+            console.error(err);
+        }
+    }
+
+    // ==== 5. 添加笔记 ====
+    async function addNote() {
+        const content = prompt("请输入笔记内容：");
+        if (!content) return;
+
+        const note = new Note();
+        note.set("content", content);
+        try {
+            await note.save();
+            fetchNotes();
+        } catch (err) {
+            alert("保存失败，请重试");
+            console.error(err);
+        }
+    }
+
+    // ==== 6. 绑定按钮事件 ====
+    document.getElementById("add-btn-top").addEventListener("click", addNote);
+
+    // ==== 7. 页面加载时进行鉴权 ====
+    authenticate();
+</script>
+
+<script>
+    // 获取加号按钮
+    const floatingBtn = document.getElementById('add-btn-top');
+
+    // 保存上一次的滚动位置
+    let lastScrollTop = 0;
+
+    // 监听页面滚动事件
+    window.addEventListener('scroll', () => {
+        const currentScroll = window.pageYOffset || document.documentElement.scrollTop;
+
+        // 向下滚动时，隐藏按钮
+        if (currentScroll > lastScrollTop) {
+            floatingBtn.classList.add('hidden');
+        } else {
+            // 向上滚动时，显示按钮
+            floatingBtn.classList.remove('hidden');
+        }
+
+        // 更新上一次滚动位置
+        lastScrollTop = currentScroll <= 0 ? 0 : currentScroll; // 防止滚动小于0的值
+    });
+</script>
+
+
+</body>
+</html>
